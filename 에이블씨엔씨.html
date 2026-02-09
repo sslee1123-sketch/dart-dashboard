@@ -47,10 +47,10 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--t1);
 </head>
 <body>
 <div id="dashboard">
-<div class="gen-info">생성: 2026-02-09 14:38 · 데이터 내장 (엑셀 불필요)</div>
+<div class="gen-info">생성: 2026-02-09 15:41 · 데이터 내장 (엑셀 불필요)</div>
 <div class="top-bar"><div class="top-left"><div class="logo">M</div><div><div class="stock-title">에이블씨엔씨 컨센서스 대시보드</div><div class="stock-sub">078520 — 자체모델 vs 증권사 애널리스트 추정치 비교</div></div></div><div class="top-right"><span class="btn-sm" style="background:rgba(255,215,64,.08);color:var(--yellow);border-color:rgba(255,215,64,.2);">⚠️ 추정치 미입력</span></div></div>
 <div id="kpi"></div>
-<div class="tab-row"><div class="tab-group" id="yt"></div><div class="tab-sep"></div><div class="tab-group" id="mt"></div></div>
+<div class="tab-row"><div class="tab-group" id="vt"></div><div class="tab-sep"></div><div class="tab-group" id="yt"></div><div class="tab-sep"></div><div class="tab-group" id="mt"></div></div>
 <div class="mid-row"><div class="chart-card"><div class="card-title"><span class="icon">📊</span><span id="ct"></span></div><div id="bc"></div></div><div class="log-card"><div class="card-title"><span class="icon">✏️</span> 변동 로그</div><div style="color:var(--t4);font-size:12px;font-style:italic;margin-top:20px">추정치 변경 시 자동 기록됩니다</div></div></div>
 <div id="bs" class="broker-card"></div>
 <div id="seg" class="broker-card"></div>
@@ -58,9 +58,10 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--t1);
 <div class="footer"><div class="lg"><span class="dt" style="background:var(--my)"></span>자체 추정(My)</div><div class="lg"><span class="dt" style="background:var(--con)"></span>컨센서스</div><div class="lg"><span class="dt" style="background:var(--green)"></span>&lt;5%</div><div class="lg"><span class="dt" style="background:var(--yellow)"></span>5~10%</div><div class="lg"><span class="dt" style="background:var(--red)"></span>&gt;10%</div><div style="margin-left:auto">My=VS시트 연간합산(억→십억) · 컨센=컨센서스시트</div></div>
 </div>
 <script>
-const DATA = {"con": {"years": [], "summary": {}, "brokerSections": {}}, "vs": {"title": "에이블씨엔씨VS (078520) (단위: 억원)", "annual": {"매출액": {}, "영업이익": {}, "당기순이익": {}}}, "seg": {}, "fn": "에이블씨엔씨_078520_모델.xlsx"};
-const G = {con: DATA.con, vs: DATA.vs, fn: DATA.fn};
-let S = {year: null, met: '매출액'};
+const DATA = {"con": {"years": [], "summary": {}, "brokerSections": {}}, "vs": {"title": "에이블씨엔씨VS (078520) (단위: 억원)", "annual": {"매출액": {}, "영업이익": {}, "당기순이익": {}}}, "seg": {}, "qcon": {}, "fn": "에이블씨엔씨_078520_모델.xlsx"};
+const G = {con: DATA.con, vs: DATA.vs, fn: DATA.fn, qcon: DATA.qcon||{}};
+let S = {year: null, met: '매출액', view: 'annual', qper: null};
+const hasQ = G.qcon.periods && G.qcon.periods.length > 0;
 const ML=['매출액','영업이익','순이익','EPS'],MC={'매출액':'','영업이익':'green','순이익':'orange','EPS':''};
 const MK={'매출액':'매출액','영업이익':'영업이익','순이익':'당기순이익','EPS':null};
 function fN(v,d){if(v==null||isNaN(v))return'—';if(Math.abs(v)>=1000)return v.toLocaleString('ko-KR',{maximumFractionDigits:d??0});if(Math.abs(v)>=10)return v.toFixed(d??1);return v.toFixed(d??2);}
@@ -72,6 +73,7 @@ function autoUnit(con){const revs=con.summary['매출액']||{};const ev=Object.e
 function render(){
   const ey=G.con.years.filter(y=>y.endsWith('E'));
   S.year=ey.length>1?ey[1]:ey[0]||null;
+  if(hasQ) S.qper=G.qcon.periods[G.qcon.periods.length>4?4:G.qcon.periods.length-1]||G.qcon.periods[0];
   rKPI();rTabs();rChart();rBT();rRange();rSeg();
 }
 
@@ -84,12 +86,24 @@ h+=`<div class="kpi"><div class="kpi-label">${it.l}</div><div class="kpi-val">${
 if(mv!=null)h+=`<span>자체 ${dm}${it.u}</span>`;if(g!=null)h+=`<span class="kpi-gap ${gc}">${gS(g)}</span>`;h+=`</div></div>`;});
 h+='</div>';document.getElementById('kpi').innerHTML=h;}
 
-function rTabs(){const ey=G.con.years.filter(y=>y.endsWith('E'));let yh='';ey.forEach(y=>{yh+=`<button class="tab-btn ${y===S.year?'active':''}" onclick="sY('${y}')">${y.replace('E','')}</button>`;});document.getElementById('yt').innerHTML=yh;
+function rTabs(){
+// view toggle
+let vh='';vh+=`<button class="tab-btn ${S.view==='annual'?'active':''}" onclick="sV('annual')">연간</button>`;
+if(hasQ) vh+=`<button class="tab-btn ${S.view==='quarterly'?'active':''}" onclick="sV('quarterly')">분기</button>`;
+document.getElementById('vt').innerHTML=vh;
+
+if(S.view==='annual'){
+const ey=G.con.years.filter(y=>y.endsWith('E'));let yh='';ey.forEach(y=>{yh+=`<button class="tab-btn ${y===S.year?'active':''}" onclick="sY('${y}')">${y.replace('E','')}</button>`;});document.getElementById('yt').innerHTML=yh;
+}else{
+let yh='';G.qcon.periods.forEach(p=>{yh+=`<button class="tab-btn ${p===S.qper?'active':''}" onclick="sQP('${p}')">${p.replace(/[AEF]$/,'')}</button>`;});document.getElementById('yt').innerHTML=yh;
+}
 let mh='';ML.forEach(m=>{const c=MC[m]||'';mh+=`<button class="tab-btn ${c} ${m===S.met?'active':''}" onclick="sM('${m}')">${m}</button>`;});document.getElementById('mt').innerHTML=mh;}
+function sV(v){S.view=v;rKPI();rTabs();rChart();rBT();rRange();rSeg();}
 function sY(y){S.year=y;rKPI();rTabs();rChart();rBT();rRange();}
+function sQP(p){S.qper=p;rTabs();rChart();rBT();}
 function sM(m){S.met=m;rTabs();rChart();rBT();}
 
-function rChart(){const{con,vs}=G,yr=S.year,met=S.met;if(!yr)return;const sd=con.brokerSections[met];if(!sd){document.getElementById('bc').innerHTML='<div style="color:var(--t4)">데이터 없음</div>';return;}
+function rChart(){if(S.view==='quarterly')return rChartQ();const{con,vs}=G,yr=S.year,met=S.met;if(!yr)return;const sd=con.brokerSections[met];if(!sd){document.getElementById('bc').innerHTML='<div style="color:var(--t4)">데이터 없음</div>';return;}
 document.getElementById('ct').textContent=`${yr} ${met} — 증권사별 비교`;const brokers=sd.brokers;const bn=Object.keys(brokers);const vl=bn.map(b=>({n:b,v:brokers[b][yr]??null})).filter(x=>x.v!=null).sort((a,b)=>b.v-a.v);
 if(!vl.length){document.getElementById('bc').innerHTML='';return;}
 const vals=vl.map(x=>x.v);const mx=Math.max(...vals),mn=Math.min(...vals);
@@ -116,7 +130,22 @@ if(myPx!=null){h+=`<div style="position:absolute;left:16px;right:16px;bottom:${O
 h+=`</div>`;
 document.getElementById('bc').innerHTML=h;}
 
-function rBT(){const{con,vs}=G,yr=S.year,met=S.met;if(!yr)return;const sd=con.brokerSections[met];if(!sd){document.getElementById('bs').innerHTML='';return;}const brokers=sd.brokers;const bn=Object.keys(brokers);const yn=yr.replace(/[AEF]/g,'');const mk=MK[met];const mv=mk&&vs?vs.annual[mk]?.[yn]??null:null;
+function rChartQ(){const qc=G.qcon,qp=S.qper,met=S.met;if(!qp||!qc.brokerSections)return;
+const sd=qc.brokerSections[met];if(!sd){document.getElementById('bc').innerHTML='<div style="color:var(--t4)">분기 데이터 없음</div>';return;}
+document.getElementById('ct').textContent=`${qp} ${met} — 증권사별 비교 (분기)`;
+const brokers=sd.brokers;const bn=Object.keys(brokers);const vl=bn.map(b=>({n:b,v:brokers[b][qp]??null})).filter(x=>x.v!=null).sort((a,b)=>b.v-a.v);
+if(!vl.length){document.getElementById('bc').innerHTML='<div style="color:var(--t4)">데이터 없음</div>';return;}
+const vals=vl.map(x=>x.v);const mx=Math.max(...vals),mn=Math.min(...vals);
+const BAR_MAX=170;const base=mn>0?mn*0.6:0;const top=mx+(mx-base)*0.1;const span=top-base||1;
+const ca=vals.reduce((a,b)=>a+b,0)/vals.length;const conPx=Math.round(((ca-base)/span)*BAR_MAX);
+let h=`<div style="position:relative;width:100%"><div style="display:flex;align-items:flex-end;width:100%;height:${BAR_MAX+50}px;padding:30px 16px 20px 16px">`;
+vl.forEach(({n,v})=>{const barH=Math.max(Math.round(((v-base)/span)*BAR_MAX),20);const gapVsCon=ca?((v-ca)/Math.abs(ca)):0;const cl=Math.abs(gapVsCon)>.08?'#ff5252':Math.abs(gapVsCon)>.04?'#ffd740':'#4a9eff';
+h+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px"><div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#cfd8dc;font-weight:600">${fN(v,1)}</div><div style="width:60%;max-width:80px;min-width:28px;height:${barH}px;background:${cl};border-radius:6px 6px 0 0"></div><div style="font-size:10px;color:#90a4ae;text-align:center;height:18px;line-height:18px">${n}</div></div>`;});
+h+=`</div>`;const LBL_H=18,PAD_B=20,OFF=PAD_B+LBL_H;
+h+=`<div style="position:absolute;left:16px;right:16px;bottom:${OFF+conPx}px;border-top:2px dashed #ffd740;z-index:3;pointer-events:none"><span style="position:absolute;left:0;top:-16px;font-size:10px;color:#ffd740;font-weight:700;font-family:'JetBrains Mono',monospace;background:#161d2b;padding:0 6px">컨센 ${fN(ca,1)}</span></div>`;
+h+=`</div>`;document.getElementById('bc').innerHTML=h;}
+
+function rBT(){if(S.view==='quarterly')return rBTQ();const{con,vs}=G,yr=S.year,met=S.met;if(!yr)return;const sd=con.brokerSections[met];if(!sd){document.getElementById('bs').innerHTML='';return;}const brokers=sd.brokers;const bn=Object.keys(brokers);const yn=yr.replace(/[AEF]/g,'');const mk=MK[met];const mv=mk&&vs?vs.annual[mk]?.[yn]??null:null;
 const vl=bn.map(b=>brokers[b][yr]).filter(v=>v!=null);const ca=vl.length?vl.reduce((a,b)=>a+b,0)/vl.length:null;const cm=vl.length?[...vl].sort((a,b)=>a-b)[Math.floor(vl.length/2)]:null;
 const ay=con.years;
 let h=`<div class="broker-hdr"><div class="card-title"><span class="icon">📋</span> 증권사별 추정치 (${yr})</div><div class="broker-count">${bn.length}곳 / ${vl.length}건</div></div>`;
@@ -124,6 +153,16 @@ h+=`<div style="overflow-x:auto"><table class="bt"><thead><tr><th>증권사 / �
 h+=`<tr class="row-con"><td>컨센서스 평균</td>`;ay.forEach(y=>{h+=`<td>${fN(con.summary[met]?.[y])}</td>`;});h+=`<td>—</td></tr>`;
 h+=`<tr class="row-my"><td>자체 추정모델</td>`;ay.forEach(y=>{const yn2=y.replace(/[AEF]/g,'');const v=mk&&vs?vs.annual[mk]?.[yn2]??null:null;h+=`<td>${v!=null?fN(v):'—'}</td>`;});const mg=gP(mv,cm);h+=`<td class="gc ${gC(mg)}">${gS(mg)}</td></tr>`;
 bn.forEach(b=>{h+=`<tr><td>${b}</td>`;ay.forEach(y=>{const v=brokers[b][y];h+=`<td>${v!=null?fN(v):''}</td>`;});const bv=brokers[b][yr];const bg=gP(bv,mv);h+=`<td class="gc ${gC(bg)}">${bg!=null?gS(bg):'—'}</td></tr>`;});
+h+=`</tbody></table></div>`;document.getElementById('bs').innerHTML=h;}
+
+function rBTQ(){const qc=G.qcon,met=S.met;if(!qc.brokerSections){document.getElementById('bs').innerHTML='';return;}
+const sd=qc.brokerSections[met];if(!sd){document.getElementById('bs').innerHTML='';return;}
+const brokers=sd.brokers;const bn=Object.keys(brokers);const pds=qc.periods;
+let h=`<div class="broker-hdr"><div class="card-title"><span class="icon">📋</span> 증권사별 분기 추정치</div><div class="broker-count">${bn.length}곳</div></div>`;
+h+=`<div style="overflow-x:auto"><table class="bt"><thead><tr><th>증권사</th>`;pds.forEach(p=>{h+=`<th>${p.replace(/[AEF]$/,'')}</th>`;});h+=`</tr></thead><tbody>`;
+// 컨센서스 행
+h+=`<tr class="row-con"><td>컨센서스</td>`;pds.forEach(p=>{const v=qc.summary[met]?.[p];h+=`<td>${v!=null?fN(v):'—'}</td>`;});h+=`</tr>`;
+bn.sort().forEach(b=>{h+=`<tr><td>${b}</td>`;pds.forEach(p=>{const v=brokers[b]?.[p];h+=`<td>${v!=null?fN(v):''}</td>`;});h+=`</tr>`;});
 h+=`</tbody></table></div>`;document.getElementById('bs').innerHTML=h;}
 
 function rRange(){const{con,vs}=G,yr=S.year;if(!yr)return;const yn=yr.replace(/[AEF]/g,'');document.getElementById('rt').textContent=`${yr} 추정 범위 (자체모델 vs 컨센)`;
